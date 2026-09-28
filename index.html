@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOLARA — Logística inteligente de última milla</title>
+<meta name="description" content="SOLARA integra el agente SOFIA y enrutamiento en tiempo real con OR-Tools para resolver la última milla en ciudades colombianas.">
+<style>
+  :root{
+    --orange:#FF6600;
+    --orange-soft:#F2782F;
+    --carbon:#262626;
+    --night:#151515;
+    --paper:#F7F7F5;
+    --stone:#595959;
+    --smoke:#EDEDEA;
+    --green:#218739;
+    --line:#DCDAD4;
+    --maxw:1180px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    color:var(--carbon);
+    background:var(--paper);
+    line-height:1.5;
+  }
+  .mono{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;}
+  a{color:inherit;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 32px;}
+  @media (max-width:720px){.wrap{padding:0 20px;}}
+
+  /* ---------- NAV ---------- */
+  nav.top{
+    position:sticky;top:0;z-index:50;
+    background:rgba(247,247,245,0.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  nav.top .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;}
+  .logo{font-weight:800;font-size:1.25rem;letter-spacing:-0.02em;display:flex;align-items:center;gap:8px;}
+  .logo .dot{width:9px;height:9px;background:var(--orange);border-radius:50%;}
+  .navlinks{display:flex;gap:28px;font-size:0.92rem;}
+  .navlinks a{text-decoration:none;color:var(--stone);}
+  .navlinks a:hover{color:var(--carbon);}
+  .navcta{background:var(--carbon);color:#fff;padding:9px 18px;border-radius:3px;text-decoration:none;font-size:0.88rem;font-weight:600;}
+  @media (max-width:820px){.navlinks{display:none;}}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    background:var(--night);
+    color:#fff;
+    position:relative;
+    overflow:hidden;
+    padding:96px 0 0;
+  }
+  .hero .wrap{position:relative;z-index:2;display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:center;padding-bottom:70px;}
+  @media (max-width:900px){.hero .wrap{grid-template-columns:1fr;}}
+  .kicker{color:var(--orange);font-weight:700;font-size:0.95rem;margin-bottom:18px;}
+  .hero h1{font-size:clamp(2.4rem,5vw,3.6rem);line-height:1.05;letter-spacing:-0.02em;margin:0 0 22px;font-weight:800;}
+  .hero p.lead{font-size:1.12rem;color:#c9c9c6;max-width:480px;margin:0 0 32px;}
+  .hero-ctas{display:flex;gap:14px;flex-wrap:wrap;}
+  .btn-primary{background:var(--orange);color:#fff;padding:14px 26px;border-radius:3px;font-weight:700;text-decoration:none;font-size:0.95rem;}
+  .btn-ghost{border:1px solid #444;color:#fff;padding:13px 25px;border-radius:3px;text-decoration:none;font-size:0.95rem;}
+
+  /* map visual */
+  .map-card{
+    background:#1c1c1c;border:1px solid #333;border-radius:6px;
+    padding:22px;position:relative;
+  }
+  .map-card svg{width:100%;height:auto;display:block;}
+  .map-legend{display:flex;justify-content:space-between;margin-top:16px;font-size:0.8rem;color:#9a9a97;}
+  .map-legend .live{display:flex;align-items:center;gap:6px;color:var(--green);}
+  .pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(33,135,57,.6);}70%{box-shadow:0 0 0 8px rgba(33,135,57,0);}100%{box-shadow:0 0 0 0 rgba(33,135,57,0);}}
+
+  .stat-strip{background:var(--carbon);border-top:1px solid #3a3a3a;}
+  .stat-strip .wrap{display:grid;grid-template-columns:repeat(4,1fr);padding:26px 32px;gap:20px;}
+  @media (max-width:720px){.stat-strip .wrap{grid-template-columns:repeat(2,1fr);}}
+  .stat b{display:block;color:var(--orange);font-size:1.7rem;font-weight:800;}
+  .stat span{color:#b9b9b6;font-size:0.82rem;}
+
+  /* ---------- SECTION GENERIC ---------- */
+  section{padding:88px 0;}
+  .section-head{max-width:620px;margin-bottom:52px;}
+  .eyebrow{color:var(--orange);font-weight:700;font-size:0.85rem;margin-bottom:10px;}
+  h2{font-size:clamp(1.8rem,3vw,2.4rem);letter-spacing:-0.01em;margin:0 0 14px;font-weight:800;}
+  .section-head p{color:var(--stone);font-size:1.05rem;max-width:520px;}
+
+  /* problem: asymmetric numbers */
+  .problem-grid{display:grid;grid-template-columns:0.8fr 1.2fr;gap:50px;}
+  @media (max-width:860px){.problem-grid{grid-template-columns:1fr;}}
+  .problem-list{border-top:1px solid var(--line);}
+  .problem-row{display:grid;grid-template-columns:70px 1fr;gap:20px;padding:26px 0;border-bottom:1px solid var(--line);}
+  .problem-row b.figure{font-size:1.6rem;color:var(--orange);font-weight:800;}
+  .problem-row h4{margin:0 0 6px;font-size:1.05rem;}
+  .problem-row p{margin:0;color:var(--stone);font-size:0.95rem;}
+  .problem-side{background:var(--carbon);color:#fff;padding:36px;border-radius:6px;align-self:start;}
+  .problem-side h3{margin-top:0;font-size:1.3rem;}
+  .problem-side p{color:#c9c9c6;font-size:0.95rem;}
+
+  /* SOFIA loop */
+  .sofia-section{background:var(--night);color:#fff;}
+  .sofia-section .section-head p{color:#b0b0ad;}
+  .loop{display:flex;gap:0;overflow-x:auto;padding-bottom:8px;}
+  .loop-step{flex:1;min-width:210px;border-left:2px solid var(--orange);padding:0 22px 0 20px;position:relative;}
+  .loop-step:first-child{border-left:2px solid transparent;}
+  .loop-step .n{color:var(--orange);font-weight:800;font-family:"SF Mono",monospace;font-size:0.85rem;}
+  .loop-step h4{margin:10px 0 8px;font-size:1.05rem;}
+  .loop-step p{color:#b0b0ad;font-size:0.9rem;margin:0;}
+
+  /* roles tabs-like layout, static columns */
+  .roles-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);}
+  @media (max-width:900px){.roles-grid{grid-template-columns:1fr 1fr;}}
+  @media (max-width:560px){.roles-grid{grid-template-columns:1fr;}}
+  .role-card{background:var(--paper);padding:28px 22px;}
+  .role-card .tag{font-size:0.78rem;font-weight:700;color:var(--orange);margin-bottom:10px;}
+  .role-card h4{margin:0 0 10px;font-size:1.1rem;}
+  .role-card ul{margin:0;padding-left:18px;color:var(--stone);font-size:0.88rem;}
+  .role-card li{margin-bottom:6px;}
+
+  /* lifecycle timeline */
+  .timeline{position:relative;padding-left:2px;}
+  .tl-track{position:absolute;left:15px;top:6px;bottom:6px;width:2px;background:var(--line);}
+  .tl-item{position:relative;padding:0 0 34px 46px;}
+  .tl-item:last-child{padding-bottom:0;}
+  .tl-dot{position:absolute;left:8px;top:2px;width:16px;height:16px;border-radius:50%;background:var(--paper);border:2px solid var(--orange);}
+  .tl-item.risk .tl-dot{background:var(--orange);}
+  .tl-item h4{margin:0 0 6px;font-size:1.05rem;}
+  .tl-item .who{color:var(--stone);font-size:0.82rem;margin-bottom:4px;}
+  .tl-item p{margin:0;color:var(--stone);font-size:0.92rem;max-width:560px;}
+  .risk-badge{display:inline-block;background:#FFF1E6;color:var(--orange-soft);font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:3px;margin-left:8px;}
+
+  /* stack table */
+  .stack-table{width:100%;border-collapse:collapse;font-size:0.92rem;}
+  .stack-table th{text-align:left;color:var(--stone);font-weight:600;font-size:0.8rem;padding:10px 14px;border-bottom:2px solid var(--carbon);}
+  .stack-table td{padding:14px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .stack-table td.tech{font-weight:700;}
+  .stack-table td.why{color:var(--stone);}
+
+  /* KPI band */
+  .kpi-section{background:var(--smoke);}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);}
+  @media (max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+  .kpi-card{background:var(--paper);padding:30px 24px;}
+  .kpi-card .val{font-size:2.1rem;font-weight:800;color:var(--carbon);}
+  .kpi-card .val small{font-size:1rem;color:var(--orange);font-weight:700;}
+  .kpi-card .label{color:var(--stone);font-size:0.85rem;margin-top:6px;}
+  .kpi-card .base{color:#8a8a86;font-size:0.75rem;margin-top:10px;border-top:1px dashed var(--line);padding-top:8px;}
+
+  /* architecture layers */
+  .arch-stack{display:flex;flex-direction:column;gap:2px;}
+  .arch-layer{background:var(--carbon);color:#fff;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;border-radius:3px;}
+  .arch-layer .name{font-weight:700;}
+  .arch-layer .detail{color:#b9b9b6;font-size:0.85rem;text-align:right;}
+  .arch-layer:nth-child(1){background:var(--orange);}
+  .arch-layer:nth-child(1) .detail{color:#ffe7d6;}
+
+  /* final CTA */
+  .cta-section{background:var(--orange);color:#fff;text-align:left;}
+  .cta-inner{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:24px;}
+  .cta-inner h2{color:#fff;margin:0;}
+  .cta-inner p{color:#FFE7D6;margin:8px 0 0;}
+  .btn-dark{background:var(--night);color:#fff;padding:15px 28px;border-radius:3px;font-weight:700;text-decoration:none;white-space:nowrap;}
+
+  footer{background:var(--night);color:#9a9a97;padding:40px 0;font-size:0.85rem;}
+  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+  footer .fbrand{color:#fff;font-weight:700;}
+
+  ::selection{background:var(--orange);color:#fff;}
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <div class="logo"><span class="dot"></span>SOLARA</div>
+    <div class="navlinks">
+      <a href="#problema">Problema</a>
+      <a href="#sofia">Agente SOFIA</a>
+      <a href="#roles">Producto</a>
+      <a href="#ciclo">Ciclo de envío</a>
+      <a href="#resultados">Resultados</a>
+    </div>
+    <a class="navcta" href="#cta">Ver la propuesta</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <div class="kicker">Logística de última milla · Colombia</div>
+      <h1>La complejidad de cada entrega, invisible para tu cliente.</h1>
+      <p class="lead">SOLARA asigna, enruta y resuelve incidencias de entrega en tiempo real con el agente SOFIA, para que el repartidor solo tenga que conducir y el cliente solo tenga que esperar.</p>
+      <div class="hero-ctas">
+        <a class="btn-primary" href="#sofia">Cómo decide SOFIA</a>
+        <a class="btn-ghost" href="#resultados">Ver resultados proyectados</a>
+      </div>
+    </div>
+    <div class="map-card">
+      <svg viewBox="0 0 360 260" fill="none">
+        <path d="M10 220 L90 180 L110 90 L200 60 L230 130 L320 40" stroke="#3a3a3a" stroke-width="10" stroke-linecap="round"/>
+        <path d="M10 220 L90 180 L110 90 L200 60 L230 130 L320 40" stroke="#555" stroke-width="1" stroke-dasharray="2 6"/>
+        <path id="routeActive" d="M110 90 L200 60 L230 130" stroke="#FF6600" stroke-width="3" stroke-dasharray="6 6"/>
+        <circle cx="10" cy="220" r="5" fill="#666"/>
+        <circle cx="320" cy="40" r="5" fill="#666"/>
+        <circle cx="230" cy="130" r="7" fill="#262626" stroke="#FF6600" stroke-width="2"/>
+        <circle r="7" fill="#FF6600">
+          <animateMotion dur="4s" repeatCount="indefinite" path="M110 90 L200 60 L230 130"/>
+        </circle>
+      </svg>
+      <div class="map-legend">
+        <span class="mono">PED-4471 · Zona Poblado</span>
+        <span class="live"><span class="pulse"></span>en tránsito</span>
+      </div>
+    </div>
+  </div>
+  <div class="stat-strip">
+    <div class="wrap">
+      <div class="stat"><b>4</b><span>roles con interfaz propia</span></div>
+      <div class="stat"><b>7</b><span>fases del ciclo de envío</span></div>
+      <div class="stat"><b>&lt;100ms</b><span>recálculo de ruta con OR-Tools</span></div>
+      <div class="stat"><b>&gt;60%</b><span>incidencias resueltas sin humano</span></div>
+    </div>
+  </div>
+</header>
+
+<section id="problema">
+  <div class="wrap">
+    <div class="problem-grid">
+      <div class="problem-side">
+        <h3>La última milla es el eslabón más caro de la cadena</h3>
+        <p>En Colombia el costo logístico equivale al 13.5% del PIB. Más del 60% de los operadores señala la entrega del último kilómetro como su mayor obstáculo operativo.</p>
+      </div>
+      <div class="problem-list">
+        <div class="problem-row">
+          <b class="figure">25–35%</b>
+          <div><h4>Rutas sin optimizar</h4><p>Asignación manual de rutas que incrementa el consumo de combustible frente a un cálculo algorítmico.</p></div>
+        </div>
+        <div class="problem-row">
+          <b class="figure">40–60%</b>
+          <div><h4>Llamadas de solo estado</h4><p>De las llamadas a soporte solo preguntan dónde está el pedido, por falta de visibilidad en tiempo real.</p></div>
+        </div>
+        <div class="problem-row">
+          <b class="figure">10–30 min</b>
+          <div><h4>Incidencias resueltas a mano</h4><p>Tiempo típico entre que ocurre un problema en ruta y el coordinador decide qué hacer.</p></div>
+        </div>
+        <div class="problem-row">
+          <b class="figure">35–45%</b>
+          <div><h4>Rotación anual de repartidores</h4><p>Herramientas de trabajo deficientes —mapas estáticos, WhatsApp, papel— desgastan la operación.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="sofia" class="sofia-section">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Agente SOFIA</div>
+      <h2>Un bucle de decisión que corre en cada envío</h2>
+      <p>SOFIA observa el estado del sistema, razona sobre si algo requiere acción, actúa sobre las herramientas del sistema, y evalúa el resultado. Sin ese bucle, cada excepción esperaría a un humano disponible.</p>
+    </div>
+    <div class="loop">
+      <div class="loop-step"><div class="n">01 — Observación</div><h4>Lee el estado del sistema</h4><p>GPS del courier, tiempo de parada, tráfico de la zona, historial del cliente.</p></div>
+      <div class="loop-step"><div class="n">02 — Razonamiento</div><h4>Evalúa si algo requiere acción</h4><p>Compara ETA prometido contra ETA real y patrones históricos de la zona.</p></div>
+      <div class="loop-step"><div class="n">03 — Acción</div><h4>Ejecuta sobre el sistema</h4><p>Reasigna ruta, notifica al cliente, marca un envío en riesgo, escala al coordinador.</p></div>
+      <div class="loop-step"><div class="n">04 — Reflexión</div><h4>Verifica si se resolvió</h4><p>Si la incidencia persiste, escala; si no, cierra el ciclo y registra el resultado.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="roles">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Producto</div>
+      <h2>Cuatro roles, cuatro maneras de ver la misma operación</h2>
+      <p>Cada actor del sistema necesita una vista distinta de la misma realidad operativa.</p>
+    </div>
+    <div class="roles-grid">
+      <div class="role-card">
+        <div class="tag">REPARTIDOR</div>
+        <h4>App móvil</h4>
+        <ul>
+          <li>Ruta activa en mapa 3D</li>
+          <li>Confirmación con QR y foto</li>
+          <li>Chat directo con SOFIA</li>
+          <li>Racha de entregas y rating de zona</li>
+        </ul>
+      </div>
+      <div class="role-card">
+        <div class="tag">COORDINADOR</div>
+        <h4>Panel de control</h4>
+        <ul>
+          <li>Mapa de flota en tiempo real</li>
+          <li>Kanban de envíos por fase</li>
+          <li>Alertas generadas por SOFIA</li>
+          <li>Analítica histórica por zona</li>
+        </ul>
+      </div>
+      <div class="role-card">
+        <div class="tag">CLIENTE</div>
+        <h4>Seguimiento del envío</h4>
+        <ul>
+          <li>ETA dinámico y preciso</li>
+          <li>Notificaciones proactivas</li>
+          <li>Sin necesidad de llamar a soporte</li>
+          <li>Calificación al cierre del envío</li>
+        </ul>
+      </div>
+      <div class="role-card">
+        <div class="tag">ADMINISTRADOR</div>
+        <h4>Vista global</h4>
+        <ul>
+          <li>Acceso sin restricción por zona</li>
+          <li>Métricas de negocio agregadas</li>
+          <li>Gestión de empresas cliente</li>
+          <li>Configuración del agente SOFIA</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ciclo">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Ciclo de vida del envío</div>
+      <h2>Siete fases, una de ellas activada por IA</h2>
+      <p>La Fase 4 no la dispara el courier ni el coordinador: la detecta SOFIA sola, evaluando velocidad GPS, tiempo de parada y el comportamiento histórico del cliente.</p>
+    </div>
+    <div class="timeline">
+      <div class="tl-track"></div>
+      <div class="tl-item"><span class="tl-dot"></span><h4>1. Pedido confirmado</h4><div class="who">Activa: sistema o empresa</div><p>SOFIA asigna courier automáticamente por optimización de carga.</p></div>
+      <div class="tl-item"><span class="tl-dot"></span><h4>2. En recogida</h4><div class="who">Activa: courier (QR en origen)</div><p>Se inicia el GPS activo y se notifica al cliente.</p></div>
+      <div class="tl-item"><span class="tl-dot"></span><h4>3. En tránsito</h4><div class="who">Activa: courier (QR confirmado)</div><p>ETA dinámico activado, actualización cada 30 segundos.</p></div>
+      <div class="tl-item risk"><span class="tl-dot"></span><h4>4. En riesgo <span class="risk-badge">SOFIA autónomo</span></h4><div class="who">Activa: SOFIA, sin intervención humana</div><p>Re-optimiza la ruta, alerta al coordinador y notifica al cliente.</p></div>
+      <div class="tl-item"><span class="tl-dot"></span><h4>5. En proceso de entrega</h4><div class="who">Activa: courier (botón "Llegué")</div><p>Notificación inmediata al cliente con ETA preciso.</p></div>
+      <div class="tl-item"><span class="tl-dot"></span><h4>6. Entregado</h4><div class="who">Activa: courier (QR + foto)</div><p>Cierre del envío y solicitud de calificación al cliente.</p></div>
+      <div class="tl-item"><span class="tl-dot"></span><h4>7. Fallido o reagendado</h4><div class="who">Activa: courier o SOFIA</div><p>Reprogramación automática con nuevo ETA y notificación.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="arquitectura" style="background:var(--smoke);">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Arquitectura</div>
+      <h2>Cinco capas, cada una escala por separado</h2>
+      <p>Ningún componente depende de escalar junto a los demás.</p>
+    </div>
+    <div class="arch-stack">
+      <div class="arch-layer"><span class="name">Presentación móvil</span><span class="detail">React Native + Reanimated · 60fps</span></div>
+      <div class="arch-layer"><span class="name">API Gateway</span><span class="detail">FastAPI + Pydantic v2 · JWT</span></div>
+      <div class="arch-layer"><span class="name">Lógica de negocio + IA</span><span class="detail">Agente SOFIA · Google OR-Tools</span></div>
+      <div class="arch-layer"><span class="name">Persistencia</span><span class="detail">Supabase / PostgreSQL · Row Level Security</span></div>
+      <div class="arch-layer"><span class="name">Infraestructura</span><span class="detail">Vercel · Firebase · Prometheus</span></div>
+    </div>
+    <table class="stack-table" style="margin-top:44px;">
+      <tr><th>Capa</th><th>Tecnología</th><th>Por qué</th></tr>
+      <tr><td class="tech">Tiempo real</td><td>WebSockets + gRPC</td><td class="why">GPS cada 10–30s, comunicación bidireccional persistente</td></tr>
+      <tr><td class="tech">Mapas</td><td>MapBox SDK</td><td class="why">Mapas 3D personalizados con mejor control de UI</td></tr>
+      <tr><td class="tech">Base de datos</td><td>Supabase (PostgreSQL 15)</td><td class="why">RLS nativo, tiempo real y storage para evidencias</td></tr>
+      <tr><td class="tech">Optimización</td><td>FastAPI + OR-Tools</td><td class="why">Async/await, &lt;100ms en endpoints críticos</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="resultados">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Resultados proyectados</div>
+      <h2>Metas medibles, no promesas</h2>
+      <p>Cada KPI tiene una metodología de medición definida desde el diseño del sistema.</p>
+    </div>
+  </div>
+  <div class="kpi-section">
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="val">+60 <small>NPS</small></div><div class="label">Frente a +30–45 de la industria</div><div class="base">Encuesta post-entrega en la app</div></div>
+      <div class="kpi-card"><div class="val">70%</div><div class="label">Menos llamadas al soporte</div><div class="base">Comparación pre/post implementación</div></div>
+      <div class="kpi-card"><div class="val">±5 min</div><div class="label">Precisión de ETA en +90% de envíos</div><div class="base">Industria: ±15 min en el 70%</div></div>
+      <div class="kpi-card"><div class="val">20%</div><div class="label">Menos consumo de combustible</div><div class="base">Km recorridos: OR-Tools vs. manual</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="cta" class="cta-section">
+  <div class="wrap cta-inner">
+    <div>
+      <h2>SOLARA — Logística Inteligente de Última Milla</h2>
+      <p>Trabajo de grado · Samuel Humberto Franco Barahona · Medellín, 2026</p>
+    </div>
+    <a class="btn-dark" href="#problema">Volver al inicio</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="fbrand">SOLARA</div>
+    <div class="mono">GA10-220501097-AA7-EV01 · Producto de prueba publicado en internet</div>
+  </div>
+</footer>
+
+</body>
+</html>
